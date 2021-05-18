@@ -17,7 +17,7 @@
  */
 
 
-bool currently_watering=false;
+
 
 
 //Certificate for SSL Communication
@@ -52,6 +52,11 @@ const char* root_ca="-----BEGIN CERTIFICATE-----\n"
 "MldlTTKB3zhThV1+XWYp6rjd5JW1zbVWEkLNxE7GJThEUG3szgBVGP7pSWTUTsqX\n"
 "nLRbwHOoq7hHwg==\n"
 "-----END CERTIFICATE-----";
+
+long mapVal(long x, long in_min, long in_max, long out_min, long out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
 
 String registerStation(){
     if(WiFi.status()== WL_CONNECTED){
@@ -99,8 +104,6 @@ String registerStation(){
     }
 
 }
-
-
 
 DynamicJsonDocument get_station_config(){
 
@@ -247,11 +250,8 @@ DynamicJsonDocument get_station_config(){
           } 
       }
   }
-
-
   deserializeJson(current_config,current_config["conf"]);
   return current_config;
-
 }
 
 
@@ -301,7 +301,7 @@ void update_station_status(String stat){
 void activate_pump(){
   //Watering Process
 
-  if(digitalRead(TANK)==0&&currently_watering==false){
+  if(currently_watering==false){
     currently_watering=true;
     update_station_status("water");
 
@@ -310,6 +310,7 @@ void activate_pump(){
     delay(200);
     digitalWrite(PUMP,HIGH);
     delay(int(stationconfig["watering_duration"])*1000);
+    //delay(10000);
     digitalWrite(PUMP,LOW);
     delay(100);
     digitalWrite(VENTIL,LOW); 
@@ -352,6 +353,7 @@ void onMessageCallback(WebsocketsMessage msg) {
         //wsmessagedata_string=""; 
         wsmessagedata.clear();
       }
+      wsmessagedata.clear();
     }
   
 } 
@@ -404,28 +406,39 @@ void ws_reconnect_callback(){
 }
 
 void ws_ping_callback(){
-  wsclient.ping();//wsclient.poll();
+  wsclient.ping();
 }
 
 
+void moisture_queue_callback(){
+  if(!moisture_buffer.isFull()){
+    moisture_buffer.shift();
+  }
+  int buf=analogRead(MOISTURE);
+  buf= mapVal(buf,moisture_dry_value,moisture_wet_value,0,1024);
+  moisture_buffer.push(buf); 
+}
+
 //sends a JSON Document with the Sensor Data via a POST request request to the central database 
 bool sendSensorData(){
- 
-  //reading sensor values 
-  moisture_value=analogRead(MOISTURE);
+
+//reading sensor values 
+  //get the mean value of all the buffer elements
+  moisture_value=0;
+  using index_t = decltype(moisture_buffer)::index_t;
+		for (index_t i = 0; i < moisture_buffer.size(); i++) {
+			moisture_value += moisture_buffer[i];
+		}
+  moisture_value=moisture_value/moisture_buffer.size();
   tank_empty=!digitalRead(TANK);
   Serial.println(moisture_value);
-  moisture_value=map(moisture_value,moisture_dry_value,moisture_wet_value,0,1024);
   
   Serial.println(moisture_value);
   Serial.println(temperature_value);
   Serial.println(tank_empty);
   Serial.println(token);
 
-
-
   sensors.requestTemperatures(); 
-  //Serial.println(sensors.getTempC(0));
   temperature_value = sensors.getTempCByIndex(0);
 
 
@@ -436,9 +449,7 @@ bool sendSensorData(){
     doc["tank_empty"] = tank_empty;
 
  //Requests and Data Processing
-
     String json="";
-
     serializeJson(doc, json);
     //Check WiFi connection status
     if(WiFi.status()== WL_CONNECTED){

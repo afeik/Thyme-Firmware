@@ -30,15 +30,18 @@
 #include <ArduinoJson.h>
 #include <ArduinoHttpClient.h>
 #include <ArduinoWebsockets.h>
+#include <CircularBuffer.h>
+  
 
 //Station Name / ID
-  int station_id_int=00000001;
+  int station_id_int=1234567804;
   String station_id = String(station_id_int);
-  String station_name="TestStation0001";
+  String station_name="TestStation123";
 
 //Authentification Declarations
-  String token= ""; 
+  String token= "Token for TestStation"; 
   String auth = base64::encode(station_id + ":" + token);
+
 
 //token and config are stored here
   const String FILE_PATH =  "/stationdata.txt";
@@ -64,7 +67,9 @@
 //Moisture - Sensor Calibration - Values 
   int moisture_wet_value=1321; //in water
   int moisture_dry_value=3422; //in air 
-  
+  //Buffer to store moisture values
+  CircularBuffer<int, 30> moisture_buffer;
+
 // RGB LED 
   int Led_Red = 4;
   int Led_Green = 2;
@@ -77,16 +82,18 @@
   //Pass our oneWire reference to DS18B20 Temperature sensor 
   DallasTemperature sensors(&oneWire);
 
-  //Task Scheduler 
-  Scheduler runner;
-  //Task Scheduler
+//Task Scheduler 
+Scheduler runner;
+//watering process
+bool currently_watering=false;
 
 //including additional functions for handling Wifi/Web-Requests
   #include "WifiConnection.h"
   #include "WebCommunication.h"
-
-  //Periodic Tasks
+  
+//Periodic Tasks
   Task PingWebsocket(10000,TASK_FOREVER,&ws_ping_callback,&runner,true);
+  Task Write_MoistureValQueue(30000,TASK_FOREVER,&moisture_queue_callback,&runner,true);
   Task SendSensorData(600000,TASK_FOREVER,&send_sensordata_callback,&runner,true);
   Task ReconnectWechsocket(10000,TASK_FOREVER,&ws_reconnect_callback,&runner,true);
 
@@ -101,22 +108,27 @@ void setup() {
   pinMode(TEMPERATURE,INPUT);
   pinMode(TANK,INPUT);
   
-  //Satus-LED and Pump
+  //Status-LED and Pump
   pinMode(VENTIL,OUTPUT);
   pinMode(PUMP,OUTPUT);
   pinMode(Led_Red, OUTPUT); 
   pinMode(Led_Green, OUTPUT); 
   pinMode(Led_Blue, OUTPUT); 
+  
+  //Set initial Values
+  digitalWrite(VENTIL,LOW);
+  digitalWrite(PUMP,LOW);
+  moisture_buffer.push(mapVal(analogRead(MOISTURE),moisture_dry_value,moisture_wet_value,0,1024));
 
   //Serial Connection
-  delay(500);
   Serial.begin(115200);
 
-  //Temperature Sensor begin 
+  //Temperature Sensor begin  
   sensors.begin();
   sensors.requestTemperatures();
   // Enable saved past credential by autoReconnect option,
   // even once it is disconnected.
+
   Config.apid = "THYME-Station";
   Config.title = "THYME-Station";
   Config.autoReconnect = true;
@@ -144,7 +156,10 @@ void setup() {
     
 
 //Register Station or restore previous token
-if(token==""){
+
+//Do not enable for testing
+
+/* if(token==""){
     if(LITTLEFS.begin(true)){
       //LITTLEFS.remove(FILE_PATH); // --> only for testing purposes
       //if opening the file was successful
@@ -176,7 +191,7 @@ if(token==""){
           token_file.close();
       }       
   }
-}  
+} */  
 
 
   //check for configuration update
@@ -190,7 +205,7 @@ if(token==""){
   attachInterrupt(BUTTON,detected_button_pressed,RISING);
   
   //Register Websocket Connection
-  DynamicJsonDocument wsregdoc(2048);
+  DynamicJsonDocument wsregdoc(1024);
   wsregdoc["id"] = station_id_int;
   wsregdoc["token"]= token;
 
@@ -207,9 +222,7 @@ if(token==""){
   //Turn LED from Blue to Green (Setup completed)
   analogWrite(Led_Blue,0);
   analogWrite(Led_Green,255);
-
 }
-
 
 
 void loop() {
