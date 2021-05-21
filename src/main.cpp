@@ -40,7 +40,7 @@
   String station_state="idle";
 
 //Authentification Declarations
-  String token= "68ea070c09cc4bf29345c265916e9d9c"; 
+  String token= ""; 
   String auth = base64::encode(station_id + ":" + token);
 
 
