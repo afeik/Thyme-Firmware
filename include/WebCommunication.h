@@ -112,10 +112,11 @@ DynamicJsonDocument get_station_config(){
   DynamicJsonDocument current_config_buf(1024);
   String current_config_string="";  
   
-  current_config_buf["watering_duration"]=10;
+  current_config_buf["watering_duration"]=3;
   current_config_buf["moisture_threshold"]=50;
   current_config_buf["moisture_sensor_wet"]=1321;
   current_config_buf["moisture_sensor_dry"]=3422;
+  current_config_buf["station_count"]=1;
 
   serializeJson(current_config_buf,current_config_string);
   current_config_buf.clear();
@@ -256,6 +257,7 @@ DynamicJsonDocument get_station_config(){
 
 
 void update_station_status(String stat){
+  station_state=stat;
   //HTTP PUT - Update Station Status after watering is complete
   if(WiFi.status()== WL_CONNECTED){
       HTTPClient http;
@@ -309,7 +311,7 @@ void activate_pump(){
     digitalWrite(VENTIL,HIGH);
     delay(200);
     digitalWrite(PUMP,HIGH);
-    delay(int(stationconfig["watering_duration"])*1000);
+    delay(int(stationconfig["watering_duration"]));
     //delay(10000);
     digitalWrite(PUMP,LOW);
     delay(100);
@@ -411,14 +413,41 @@ void ws_ping_callback(){
 
 
 void moisture_queue_callback(){
-  if(!moisture_buffer.isFull()){
+  if(moisture_buffer.isFull()){
     moisture_buffer.shift();
   }
   int buf=analogRead(MOISTURE);
-  buf= mapVal(buf,moisture_dry_value,moisture_wet_value,0,1024);
+  buf= mapVal(buf,moisture_dry_value,moisture_wet_value,0,1000);
+  if(buf>1000){
+    buf=1000;
+  }else if(buf<0){
+    buf=0;
+  }
   moisture_buffer.push(buf); 
 }
 
+void printBuffer() {
+	if (moisture_buffer.isEmpty()) {
+		Serial.println("empty");
+	} else {
+		Serial.print("[");
+		for (decltype(moisture_buffer)::index_t i = 0; i < moisture_buffer.size() - 1; i++) {
+			Serial.print(moisture_buffer[i]);
+			Serial.print(",");
+		}
+		Serial.print(moisture_buffer[moisture_buffer.size() - 1]);
+		Serial.print("] (");
+
+		Serial.print(moisture_buffer.size());
+		Serial.print("/");
+		Serial.print(moisture_buffer.size() + moisture_buffer.available());
+		if (moisture_buffer.isFull()) {
+			Serial.print(" full");
+		}
+
+		Serial.println(")");
+	}
+}
 //sends a JSON Document with the Sensor Data via a POST request request to the central database 
 bool sendSensorData(){
 
@@ -430,6 +459,9 @@ bool sendSensorData(){
 			moisture_value += moisture_buffer[i];
 		}
   moisture_value=moisture_value/moisture_buffer.size();
+
+
+  printBuffer();
   tank_empty=!digitalRead(TANK);
   Serial.println(moisture_value);
   
@@ -491,7 +523,7 @@ bool sendSensorData(){
 
 }
 
-static bool interrupt_triggered=false;
+/* static bool interrupt_triggered=false;
 
 void detected_tank_empty(){
     delay(200);
@@ -499,10 +531,13 @@ void detected_tank_empty(){
       interrupt_triggered=true;
       Serial.println("Tank ist empty!");
       delay(2000);
+      sendSensorData();
+      update_station_status("empty");
       interrupt_triggered=false;
     }
-        sendSensorData();
-}
+        
+} */
+
 
 void detected_button_pressed(){
     digitalWrite(VENTIL,HIGH);

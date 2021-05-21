@@ -34,12 +34,13 @@
   
 
 //Station Name / ID
-  int station_id_int=1234567804;
+  int station_id_int=1234567807;
   String station_id = String(station_id_int);
-  String station_name="TestStation123";
+  String station_name="TestStation07";
+  String station_state="idle";
 
 //Authentification Declarations
-  String token= "Token for TestStation"; 
+  String token= "68ea070c09cc4bf29345c265916e9d9c"; 
   String auth = base64::encode(station_id + ":" + token);
 
 
@@ -58,7 +59,7 @@
   int TANK=34;
   int VENTIL=15;
   int BUTTON=36;
-
+  
 //Sensor-Value-Variables
   int moisture_value=0;
   bool tank_empty=false;
@@ -71,9 +72,9 @@
   CircularBuffer<int, 30> moisture_buffer;
 
 // RGB LED 
-  int Led_Red = 4;
+  int Led_Red = 0;
   int Led_Green = 2;
-  int Led_Blue = 0;
+  int Led_Blue = 4;
 
 //DS18B20 - Temperature Sensor
   //Setup a oneWire instance to communicate with any OneWire devices
@@ -92,8 +93,8 @@ bool currently_watering=false;
   #include "WebCommunication.h"
   
 //Periodic Tasks
-  Task PingWebsocket(10000,TASK_FOREVER,&ws_ping_callback,&runner,true);
-  Task Write_MoistureValQueue(30000,TASK_FOREVER,&moisture_queue_callback,&runner,true);
+  Task PingWebsocket(30000,TASK_FOREVER,&ws_ping_callback,&runner,true);
+  Task Write_MoistureValQueue(20000,TASK_FOREVER,&moisture_queue_callback,&runner,true);
   Task SendSensorData(600000,TASK_FOREVER,&send_sensordata_callback,&runner,true);
   Task ReconnectWechsocket(10000,TASK_FOREVER,&ws_reconnect_callback,&runner,true);
 
@@ -107,6 +108,7 @@ void setup() {
   pinMode(MOISTURE,INPUT);
   pinMode(TEMPERATURE,INPUT);
   pinMode(TANK,INPUT);
+  pinMode(BUTTON,INPUT);
   
   //Status-LED and Pump
   pinMode(VENTIL,OUTPUT);
@@ -118,7 +120,7 @@ void setup() {
   //Set initial Values
   digitalWrite(VENTIL,LOW);
   digitalWrite(PUMP,LOW);
-  moisture_buffer.push(mapVal(analogRead(MOISTURE),moisture_dry_value,moisture_wet_value,0,1024));
+  moisture_buffer.push(mapVal(analogRead(MOISTURE),moisture_dry_value,moisture_wet_value,0,1000));
 
   //Serial Connection
   Serial.begin(115200);
@@ -200,9 +202,9 @@ void setup() {
   //Finalize HTTP Authentification 
   auth = base64::encode(station_id + ":" + token);  
 
-  //Set Interrupt for Hall Sensor and control button
-  attachInterrupt(TANK, detected_tank_empty, FALLING);
+  //Set Interrupt for control button
   attachInterrupt(BUTTON,detected_button_pressed,RISING);
+
   
   //Register Websocket Connection
   DynamicJsonDocument wsregdoc(1024);
@@ -236,9 +238,25 @@ void loop() {
   //WebSocket - Handling 
   wsclient.poll();
 
-  //watering process
-  /*   if(moisture_value<stationconfig["moisture_threshold"]){
-    activate_pump();
-  }  */
+
+/*//watering algorithm
+    if(moisture_value<stationconfig["moisture_threshold"]){
+      activate_pump();
+    }  
+
+
+  //water level detection:
+  if(digitalRead(TANK)==1){
+    delay(500);
+    if(digitalRead(TANK)==1){
+      Serial.println("Tank is empty!");
+      sendSensorData();
+      update_station_status("empty");
+    }
+  }
+  if((station_state=="empty")&&digitalRead(TANK)==0){
+    update_station_status("idle");
+  } */
+
   delay(100);
 }
