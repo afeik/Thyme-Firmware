@@ -308,14 +308,14 @@ void activate_pump(){
     update_station_status("water");
 
     Serial.println("Watering started!");
-    digitalWrite(VENTIL,HIGH);
+    digitalWrite(VENTIL,LOW);
     delay(200);
-    digitalWrite(PUMP,HIGH);
-    delay(int(stationconfig["watering_duration"]));
-    //delay(10000);
     digitalWrite(PUMP,LOW);
+    delay(int(stationconfig["watering_duration"])*1000);
+    //delay(10000);
+    digitalWrite(PUMP,HIGH);
     delay(100);
-    digitalWrite(VENTIL,LOW); 
+    digitalWrite(VENTIL,HIGH); 
 
     update_station_status("idle");
     currently_watering=false;

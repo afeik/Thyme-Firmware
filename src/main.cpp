@@ -34,9 +34,9 @@
   
 
 //Station Name / ID
-  int station_id_int=1234567807;
+  int station_id_int=1234567804;
   String station_id = String(station_id_int);
-  String station_name="TestStation07";
+  String station_name="TestStation04";
   String station_state="idle";
 
 //Authentification Declarations
@@ -118,8 +118,8 @@ void setup() {
   pinMode(Led_Blue, OUTPUT); 
   
   //Set initial Values
-  digitalWrite(VENTIL,LOW);
-  digitalWrite(PUMP,LOW);
+  digitalWrite(VENTIL,HIGH);
+  digitalWrite(PUMP,HIGH);
   moisture_buffer.push(mapVal(analogRead(MOISTURE),moisture_dry_value,moisture_wet_value,0,1000));
 
   //Serial Connection
