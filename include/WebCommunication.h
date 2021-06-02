@@ -113,10 +113,11 @@ DynamicJsonDocument get_station_config(){
   String current_config_string="";  
   
   current_config_buf["watering_duration"]=3;
-  current_config_buf["moisture_threshold"]=50;
+  current_config_buf["moisture_threshold"]=72;
   current_config_buf["moisture_sensor_wet"]=1321;
   current_config_buf["moisture_sensor_dry"]=3422;
-  current_config_buf["station_count"]=1;
+  current_config_buf["plant_count"]=1;
+  //current_config_buf["send_sensor_data_intervall"]=10;
 
   serializeJson(current_config_buf,current_config_string);
   current_config_buf.clear();
@@ -126,6 +127,7 @@ DynamicJsonDocument get_station_config(){
 
   current_config_string="";  
   serializeJson(current_config,current_config_string);
+  Serial.println(current_config_string);
   bool config_request_valid=false;
   String new_config_string="";
         
@@ -303,7 +305,7 @@ void update_station_status(String stat){
 void activate_pump(){
   //Watering Process
 
-  if(currently_watering==false){
+  if(currently_watering==false&&station_state!="empty"){
     currently_watering=true;
     update_station_status("water");
 
@@ -311,13 +313,18 @@ void activate_pump(){
     digitalWrite(VENTIL,LOW);
     delay(200);
     digitalWrite(PUMP,LOW);
-    delay(int(stationconfig["watering_duration"])*1000);
-    //delay(10000);
+  
+    if(int(stationconfig["plantcount"])!=0){
+      delay(double(stationconfig["watering_duration"])*1000*int(stationconfig["plant_count"]));
+    }else{
+      delay(double(stationconfig["watering_duration"])*1000);
+    }
     digitalWrite(PUMP,HIGH);
     delay(100);
     digitalWrite(VENTIL,HIGH); 
 
     update_station_status("idle");
+    delay(10000);
     currently_watering=false;
   }
     
@@ -424,6 +431,7 @@ void moisture_queue_callback(){
     buf=0;
   }
   moisture_buffer.push(buf); 
+
 }
 
 void printBuffer() {
@@ -460,7 +468,6 @@ bool sendSensorData(){
 		}
   moisture_value=moisture_value/moisture_buffer.size();
 
-
   printBuffer();
   tank_empty=!digitalRead(TANK);
   Serial.println(moisture_value);
@@ -470,15 +477,17 @@ bool sendSensorData(){
   Serial.println(tank_empty);
   Serial.println(token);
 
-  sensors.requestTemperatures(); 
-  temperature_value = sensors.getTempCByIndex(0);
-
+  
+  temperature_value = dht.readTemperature();
+  humidity_value=dht.readHumidity();
 
   //Sensor-JSON-Data
   DynamicJsonDocument doc(1024);
     doc["moisture"] = moisture_value;
     doc["temperature"] = temperature_value;
+    doc["humidity"]=humidity_value;
     doc["tank_empty"] = tank_empty;
+
 
  //Requests and Data Processing
     String json="";
@@ -521,33 +530,11 @@ bool sendSensorData(){
       return 0;
     }
 
-}
-
-/* static bool interrupt_triggered=false;
-
-void detected_tank_empty(){
-    delay(200);
-    if(interrupt_triggered==false){
-      interrupt_triggered=true;
-      Serial.println("Tank ist empty!");
-      delay(2000);
-      sendSensorData();
-      update_station_status("empty");
-      interrupt_triggered=false;
+    //automatic watering functionality
+    if(moisture_value<stationconfig["moisture_threshold"]){
+      activate_pump();
     }
-        
-} */
 
-
-void detected_button_pressed(){
-    digitalWrite(VENTIL,HIGH);
-    delay(100);
-    while(digitalRead(BUTTON)==1){
-      digitalWrite(PUMP,HIGH);
-    }
-    digitalWrite(PUMP,LOW);
-    delay(100);
-    digitalWrite(VENTIL,LOW);
 }
 
 void send_sensordata_callback(){

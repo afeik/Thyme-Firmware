@@ -31,12 +31,14 @@
 #include <ArduinoHttpClient.h>
 #include <ArduinoWebsockets.h>
 #include <CircularBuffer.h>
-  
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+
 
 //Station Name / ID
-  int station_id_int=1234567804;
+  int station_id_int=1234567808;
   String station_id = String(station_id_int);
-  String station_name="TestStation04";
+  String station_name="TestStation08";
   String station_state="idle";
 
 //Authentification Declarations
@@ -64,6 +66,7 @@
   int moisture_value=0;
   bool tank_empty=false;
   float temperature_value=0;
+  float humidity_value=0;
 
 //Moisture - Sensor Calibration - Values 
   int moisture_wet_value=1321; //in water
@@ -76,12 +79,9 @@
   int Led_Green = 2;
   int Led_Blue = 4;
 
-//DS18B20 - Temperature Sensor
-  //Setup a oneWire instance to communicate with any OneWire devices
-  OneWire oneWire(TEMPERATURE);
-
-  //Pass our oneWire reference to DS18B20 Temperature sensor 
-  DallasTemperature sensors(&oneWire);
+//DHT 11 Temperature and Humidity Sensor
+  #define DHTTYPE DHT11 
+  DHT dht(TEMPERATURE, DHTTYPE);
 
 //Task Scheduler 
 Scheduler runner;
@@ -126,10 +126,7 @@ void setup() {
   Serial.begin(115200);
 
   //Temperature Sensor begin  
-  sensors.begin();
-  sensors.requestTemperatures();
-  // Enable saved past credential by autoReconnect option,
-  // even once it is disconnected.
+  dht.begin();
 
   Config.apid = "THYME-Station";
   Config.title = "THYME-Station";
@@ -159,9 +156,9 @@ void setup() {
 
 //Register Station or restore previous token
 
-//Do not enable for testing
+/* //Do not enable for testing
 
-/* if(token==""){
+if(token==""){
     if(LITTLEFS.begin(true)){
       //LITTLEFS.remove(FILE_PATH); // --> only for testing purposes
       //if opening the file was successful
@@ -173,15 +170,14 @@ void setup() {
          }
       }
       else{ 
-        File token_file = LITTLEFS.open(TOKEN_PATH);
+        File token_file = LITTLEFS.open(TOKEN_PATH,"w");
         Serial.println("Station needs to be registered.");
         
         //register the Station via API and write Auth-Token to a file
-        token = registerStation();
-        token_file = LITTLEFS.open(FILE_PATH, "w");   
+        token = registerStation(); 
           
           if(!token_file){
-            Serial.println("There was an error opening the file for writing");
+            Serial.println("There was an error opening the token file for writing");
           }else{
             if(token_file.print(token)){
               Serial.println("File was written");
@@ -193,7 +189,7 @@ void setup() {
           token_file.close();
       }       
   }
-} */  
+}   */
 
 
   //check for configuration update
@@ -203,7 +199,7 @@ void setup() {
   auth = base64::encode(station_id + ":" + token);  
 
   //Set Interrupt for control button
-  attachInterrupt(BUTTON,detected_button_pressed,RISING);
+  //attachInterrupt(BUTTON,detected_button_pressed,RISING);
 
   
   //Register Websocket Connection
@@ -238,15 +234,9 @@ void loop() {
   //WebSocket - Handling 
   wsclient.poll();
 
-
-/*//watering algorithm
-    if(moisture_value<stationconfig["moisture_threshold"]){
-      activate_pump();
-    }  
-
-
+Serial.println(digitalRead(TANK));
   //water level detection:
-  if(digitalRead(TANK)==1){
+  if(digitalRead(TANK)==0){
     delay(500);
     if(digitalRead(TANK)==1){
       Serial.println("Tank is empty!");
@@ -256,7 +246,11 @@ void loop() {
   }
   if((station_state=="empty")&&digitalRead(TANK)==0){
     update_station_status("idle");
-  } */
+  }
 
-  delay(100);
+  if(digitalRead(BUTTON)==HIGH){
+      activate_pump();
+  }
+
+  delay(300);
 }
