@@ -36,9 +36,9 @@
 
 
 //Station Name / ID
-  int station_id_int=1234567808;
+  int station_id_int=1234567810;
   String station_id = String(station_id_int);
-  String station_name="TestStation08";
+  String station_name="TestStation10";
   String station_state="idle";
 
 //Authentification Declarations
@@ -220,6 +220,7 @@ if(token==""){
   //Turn LED from Blue to Green (Setup completed)
   analogWrite(Led_Blue,0);
   analogWrite(Led_Green,255);
+
 }
 
 
@@ -253,4 +254,5 @@ Serial.println(digitalRead(TANK));
   }
 
   delay(300);
+
 }

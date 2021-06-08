@@ -116,7 +116,7 @@ DynamicJsonDocument get_station_config(){
   current_config_buf["moisture_threshold"]=72;
   current_config_buf["moisture_sensor_wet"]=1321;
   current_config_buf["moisture_sensor_dry"]=3422;
-  current_config_buf["plant_count"]=1;
+  //current_config_buf["plant_count"]=1;
   //current_config_buf["send_sensor_data_intervall"]=10;
 
   serializeJson(current_config_buf,current_config_string);
@@ -313,12 +313,7 @@ void activate_pump(){
     digitalWrite(VENTIL,LOW);
     delay(200);
     digitalWrite(PUMP,LOW);
-  
-    if(int(stationconfig["plantcount"])!=0){
-      delay(double(stationconfig["watering_duration"])*1000*int(stationconfig["plant_count"]));
-    }else{
-      delay(double(stationconfig["watering_duration"])*1000);
-    }
+    delay(double(stationconfig["watering_duration"])*1000);
     digitalWrite(PUMP,HIGH);
     delay(100);
     digitalWrite(VENTIL,HIGH); 
@@ -378,17 +373,17 @@ void onEventsCallback(WebsocketsEvent event, String data) {
 
         Serial.println("Connnection Closed");
         //Try to Re-Register 
-        //wsclient.connect(websockets_server_host);
+        wsclient.connect(websockets_server_host);
 
         //Register Websocket Connection
         DynamicJsonDocument wsregdoc(1024);
         wsregdoc["id"] = station_id_int;
-        //wsregdoc["name"]= station_name;
+        wsregdoc["name"]= station_name;
         wsregdoc["token"]= token;
         // Serialize JSON document
         String wssrequestdata="";
         serializeJson(wsregdoc, wssrequestdata);
-        //wsclient.send(wssrequestdata);
+        wsclient.send(wssrequestdata);
 
     } else if(event == WebsocketsEvent::GotPing) {
         Serial.println("Got a Ping!");
@@ -417,7 +412,6 @@ void ws_reconnect_callback(){
 void ws_ping_callback(){
   wsclient.ping();
 }
-
 
 void moisture_queue_callback(){
   if(moisture_buffer.isFull()){
@@ -486,7 +480,7 @@ bool sendSensorData(){
     doc["moisture"] = moisture_value;
     doc["temperature"] = temperature_value;
     doc["humidity"]=humidity_value;
-    doc["tank_empty"] = tank_empty;
+    doc["tank_fill"] = tank_empty;
 
 
  //Requests and Data Processing
@@ -531,7 +525,7 @@ bool sendSensorData(){
     }
 
     //automatic watering functionality
-    if(moisture_value<stationconfig["moisture_threshold"]){
+    if((moisture_value<stationconfig["moisture_threshold"])||(temperature_value>26.0&&moisture_value<int(stationconfig["moisture_threshold"])-30)||(humidity_value < 20 && moisture_value<int(stationconfig["moisture_threshold"])-30)){
       activate_pump();
     }
 
