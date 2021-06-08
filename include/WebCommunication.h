@@ -525,7 +525,7 @@ bool sendSensorData(){
     }
 
     //automatic watering functionality
-    if((moisture_value<stationconfig["moisture_threshold"])||(temperature_value>26.0&&moisture_value<int(stationconfig["moisture_threshold"])-30)||(humidity_value < 20 && moisture_value<int(stationconfig["moisture_threshold"])-30)){
+    if((moisture_value<stationconfig["moisture_threshold"])||(temperature_value>26.0&&moisture_value<int(stationconfig["moisture_threshold"])*0.95)||(humidity_value < 20 && moisture_value<int(stationconfig["moisture_threshold"])*0.95)){
       activate_pump();
     }
 
