@@ -464,24 +464,33 @@ bool sendSensorData(){
 
   printBuffer();
   tank_empty=!digitalRead(TANK);
-  Serial.println(moisture_value);
   
+  
+  temperature_value = dht.readTemperature()-3;
+  delay(3000);
+  humidity_value=dht.readHumidity();
+  delay(3000);
+
   Serial.println(moisture_value);
   Serial.println(temperature_value);
+  Serial.println(humidity_value);
   Serial.println(tank_empty);
   Serial.println(token);
 
   
-  temperature_value = dht.readTemperature();
-  humidity_value=dht.readHumidity();
+
 
   //Sensor-JSON-Data
   DynamicJsonDocument doc(1024);
     doc["moisture"] = moisture_value;
     doc["temperature"] = temperature_value;
     doc["humidity"]=humidity_value;
-    doc["tank_fill"] = tank_empty;
-
+    doc["tank_fill"] = float(tank_empty);
+    
+  //Automatic watering functionality  
+    if(moisture_value<int(stationconfig["moisture_threshold"])||(temperature_value>27.0&&moisture_value<int(stationconfig["moisture_threshold"])*1.05)||(humidity_value < 30.0 && moisture_value<int(stationconfig["moisture_threshold"])*1.05)){
+      activate_pump();
+    }
 
  //Requests and Data Processing
     String json="";
@@ -521,12 +530,8 @@ bool sendSensorData(){
     }
     else {
       Serial.println("WiFi Disconnected");
+      //automatic watering functionality
       return 0;
-    }
-
-    //automatic watering functionality
-    if((moisture_value<stationconfig["moisture_threshold"])||(temperature_value>26.0&&moisture_value<int(stationconfig["moisture_threshold"])*0.95)||(humidity_value < 20 && moisture_value<int(stationconfig["moisture_threshold"])*0.95)){
-      activate_pump();
     }
 
 }

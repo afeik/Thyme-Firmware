@@ -36,9 +36,9 @@
 
 
 //Station Name / ID
-  int station_id_int=1234567810;
+  int station_id_int=1234567804;
   String station_id = String(station_id_int);
-  String station_name="TestStation10";
+  String station_name="TestStation04";
   String station_state="idle";
 
 //Authentification Declarations
@@ -64,9 +64,13 @@
   
 //Sensor-Value-Variables
   int moisture_value=0;
-  bool tank_empty=false;
+  int tank_empty=0;
   float temperature_value=0;
   float humidity_value=0;
+
+//DHT 11 Temperature and Humidity Sensor
+  #define DHTTYPE DHT11 
+  DHT dht(TEMPERATURE, DHTTYPE);
 
 //Moisture - Sensor Calibration - Values 
   int moisture_wet_value=1321; //in water
@@ -76,12 +80,10 @@
 
 // RGB LED 
   int Led_Red = 0;
-  int Led_Green = 2;
-  int Led_Blue = 4;
+  int Led_Green = 4;
+  int Led_Blue = 2;
 
-//DHT 11 Temperature and Humidity Sensor
-  #define DHTTYPE DHT11 
-  DHT dht(TEMPERATURE, DHTTYPE);
+
 
 //Task Scheduler 
 Scheduler runner;
@@ -128,8 +130,8 @@ void setup() {
   //Temperature Sensor begin  
   dht.begin();
 
-  Config.apid = "THYME-Station";
-  Config.title = "THYME-Station";
+  Config.apid = "THYME-Station_"+station_name;
+  Config.title = "THYME-Station"+station_name;
   Config.autoReconnect = true;
   Portal.config(Config);
 
@@ -217,6 +219,9 @@ if(token==""){
   //Start Scheduler Instance
   runner.startNow();
 
+  //Temperature Sensor begin  
+  dht.begin();
+
   //Turn LED from Blue to Green (Setup completed)
   analogWrite(Led_Blue,0);
   analogWrite(Led_Green,255);
@@ -238,7 +243,7 @@ void loop() {
 Serial.println(digitalRead(TANK));
   //water level detection:
   if(digitalRead(TANK)==0){
-    delay(500);
+    delay(200);
     if(digitalRead(TANK)==1){
       Serial.println("Tank is empty!");
       sendSensorData();
