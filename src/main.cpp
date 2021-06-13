@@ -31,18 +31,19 @@
 #include <ArduinoHttpClient.h>
 #include <ArduinoWebsockets.h>
 #include <CircularBuffer.h>
-#include <Adafruit_Sensor.h>
+/* #include <Adafruit_Sensor.h>
 #include <DHT.h>
+ */
 
 
 //Station Name / ID
-  int station_id_int=1234567804;
+  int station_id_int=4;
   String station_id = String(station_id_int);
-  String station_name="TestStation04";
+  String station_name="Station_04";
   String station_state="idle";
 
 //Authentification Declarations
-  String token= ""; 
+  String token=""; 
   String auth = base64::encode(station_id + ":" + token);
 
 
@@ -55,11 +56,11 @@
   static DynamicJsonDocument stationconfig(1024);
 
 //ESP32_Ports
-  int PUMP = 27;
+  int PUMP = 15;//27
   int MOISTURE=32;
   int TEMPERATURE=14;
   int TANK=34;
-  int VENTIL=15;
+  int VENTIL=27;//15
   int BUTTON=36;
   
 //Sensor-Value-Variables
@@ -69,8 +70,11 @@
   float humidity_value=0;
 
 //DHT 11 Temperature and Humidity Sensor
-  #define DHTTYPE DHT11 
-  DHT dht(TEMPERATURE, DHTTYPE);
+  /* #define DHTTYPE DHT11 
+  DHT dht(TEMPERATURE, DHTTYPE); */
+  OneWire oneWire(TEMPERATURE);
+  DallasTemperature sensors(&oneWire);
+
 
 //Moisture - Sensor Calibration - Values 
   int moisture_wet_value=1321; //in water
@@ -80,8 +84,8 @@
 
 // RGB LED 
   int Led_Red = 0;
-  int Led_Green = 4;
-  int Led_Blue = 2;
+  int Led_Green = 2;//4
+  int Led_Blue = 4;//2
 
 
 
@@ -128,8 +132,11 @@ void setup() {
   Serial.begin(115200);
 
   //Temperature Sensor begin  
-  dht.begin();
 
+  sensors.begin();
+  delay(1000);
+  sensors.requestTemperatures();
+  
   Config.apid = "THYME-Station_"+station_name;
   Config.title = "THYME-Station"+station_name;
   Config.autoReconnect = true;
@@ -158,11 +165,11 @@ void setup() {
 
 //Register Station or restore previous token
 
-/* //Do not enable for testing
+//Do not enable for testing
 
 if(token==""){
     if(LITTLEFS.begin(true)){
-      //LITTLEFS.remove(FILE_PATH); // --> only for testing purposes
+      //LITTLEFS.remove(TOKEN_PATH); // --> only for testing purposes
       //if opening the file was successful
       if(LITTLEFS.exists(TOKEN_PATH)){
         File token_file = LITTLEFS.open(TOKEN_PATH);
@@ -191,7 +198,7 @@ if(token==""){
           token_file.close();
       }       
   }
-}   */
+}  
 
 
   //check for configuration update
@@ -220,8 +227,8 @@ if(token==""){
   runner.startNow();
 
   //Temperature Sensor begin  
-  dht.begin();
-
+ /*  dht.begin();
+ */
   //Turn LED from Blue to Green (Setup completed)
   analogWrite(Led_Blue,0);
   analogWrite(Led_Green,255);
@@ -232,6 +239,7 @@ if(token==""){
 void loop() {
   //Execute Scheduler
   runner.execute();
+  Serial.println(token);
   
   //Wifi-Connection Handler
   Portal.handleClient();
@@ -240,7 +248,7 @@ void loop() {
   //WebSocket - Handling 
   wsclient.poll();
 
-Serial.println(digitalRead(TANK));
+//Serial.println(digitalRead(TANK));
   //water level detection:
   if(digitalRead(TANK)==0){
     delay(200);
@@ -257,6 +265,7 @@ Serial.println(digitalRead(TANK));
   if(digitalRead(BUTTON)==HIGH){
       activate_pump();
   }
+
 
   delay(300);
 

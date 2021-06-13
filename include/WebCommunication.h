@@ -172,7 +172,7 @@ DynamicJsonDocument get_station_config(){
 
     //in case config is empty, initialize server with standard config
     String config_empty=new_config["conf"];
-    if(config_empty==""){
+    if(config_empty=="{}"){
       if(WiFi.status()== WL_CONNECTED){
         HTTPClient http;
 
@@ -466,10 +466,15 @@ bool sendSensorData(){
   tank_empty=!digitalRead(TANK);
   
   
-  temperature_value = dht.readTemperature()-3;
+  /* temperature_value = dht.readTemperature()-3;
   delay(3000);
   humidity_value=dht.readHumidity();
   delay(3000);
+ */
+  sensors.requestTemperatures(); 
+  temperature_value = sensors.getTempCByIndex(0);
+  humidity_value=50;
+
 
   Serial.println(moisture_value);
   Serial.println(temperature_value);
